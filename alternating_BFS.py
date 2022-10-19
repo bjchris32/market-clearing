@@ -27,6 +27,7 @@
             # case2) if there is a seller node without child(buyer), then we discovered an augmented path
 import numpy as np
 import csv
+import matplotlib.pyplot as plt
 
 # class AlternatingBFS:
 # Example with augmented set:
@@ -182,14 +183,16 @@ class PerfectMatch:
         self.prices = np.zeros((self.number_of_matches))
         self.buyer_payoffs = np.zeros((self.number_of_matches, self.number_of_matches))
         self.buyer_potential = 0
+        self.auction_potential_per_round = [] # record the auction potential
 
     def find_matches(self):
         number_of_matches = 0
         round = 0
+        self.construct_buyer_payoff()
         while(number_of_matches < self.number_of_matches):
+            self.auction_potential_per_round.append(self.auction_potential())
             constricted_buyers = []
             round += 1
-            self.construct_buyer_payoff()
             adjacency_matrix = self.build_adjacency_matrix(self.buyer_payoffs)
             bfs = AlternatingBFS(adjacency_matrix)
             bfs.enlarge_matching()
@@ -200,12 +203,10 @@ class PerfectMatch:
                 sellers_to_adjust_prices = self.neighbors_of_constricted_buyers(adjacency_matrix, constricted_buyers)
                 if len(sellers_to_adjust_prices):
                     self.adjust_seller_prices(sellers_to_adjust_prices)
-            print("auction potential = ", self.auction_potential())
-            # record the auction potential
-
+                    self.construct_buyer_payoff()
         # generate the perfect match file
-        print("in round = ", round)
         print("At last, self.prices === ", self.prices)
+        self.plot_auction_potential_by_time()
 
     def build_adjacency_matrix(self, buyer_payoffs):
         matrix = np.zeros((self.number_of_matches, self.number_of_matches))
@@ -244,7 +245,6 @@ class PerfectMatch:
         # reduce all prices by minimum price
         for i in range(len(self.prices)):
             self.prices[i] -= minimum_price
-        print("after adjusting the prices = ", self.prices)
 
     def calculate_buyer_potential(self):
         sum_of_buyer_potential = 0
@@ -270,6 +270,18 @@ class PerfectMatch:
 
     def auction_potential(self):
         return (self.prices.sum() + self.buyer_potential)
+
+    def plot_auction_potential_by_time(self):
+        fig, ax = plt.subplots()
+        x = np.linspace(0, len(self.auction_potential_per_round)-1, num=len(self.auction_potential_per_round))
+        plt.plot(x, self.auction_potential_per_round)
+        ax.set_title('Auction Potential by Time')
+        plt.xlabel('Time')
+        plt.ylabel('Auction Potential')
+        plt.show()
+
+    def generate_market_clearing_price_report(self):
+        print("generate market clearing report")
 
 perfect_match = PerfectMatch(100)
 perfect_match.find_matches()

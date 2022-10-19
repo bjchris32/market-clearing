@@ -176,6 +176,9 @@ class AlternatingBFS:
     def number_of_matched_pairs(self):
         return self.perfect_matching - self.matched_buyer.count(-1)
 
+    def matched_buyer(self):
+        return self.matched_buyer
+
 class PerfectMatch:
     def __init__(self, number_of_matches, file_name = './preference.csv'):
         self.number_of_matches = number_of_matches
@@ -190,14 +193,13 @@ class PerfectMatch:
         round = 0
         self.construct_buyer_payoff()
         while(number_of_matches < self.number_of_matches):
+            round += 1
             self.auction_potential_per_round.append(self.auction_potential())
             constricted_buyers = []
-            round += 1
             adjacency_matrix = self.build_adjacency_matrix(self.buyer_payoffs)
             bfs = AlternatingBFS(adjacency_matrix)
             bfs.enlarge_matching()
             number_of_matches = bfs.number_of_matched_pairs()
-
             constricted_buyers = bfs.constricted_set()
             if len(constricted_buyers):
                 sellers_to_adjust_prices = self.neighbors_of_constricted_buyers(adjacency_matrix, constricted_buyers)
@@ -205,7 +207,10 @@ class PerfectMatch:
                     self.adjust_seller_prices(sellers_to_adjust_prices)
                     self.construct_buyer_payoff()
         # generate the perfect match file
+        print("Found the market clearing price in " + str(round) + " rounds")
         print("At last, self.prices === ", self.prices)
+        print("bfs.matched_buyer == ", bfs.matched_buyer)
+        self.write_market_clearing_price('market-clearing.csv', bfs.matched_buyer)
         self.plot_auction_potential_by_time()
 
     def build_adjacency_matrix(self, buyer_payoffs):
@@ -267,6 +272,20 @@ class PerfectMatch:
                         self.buyer_valuations[i][j - 1] = column
                     j += 1
                 i += 1
+
+    def write_market_clearing_price(self, file_name, matched_buyer):
+        header = ['buyer', 'seller', 'payoff']
+        matching_list = []
+        buyer_map = {}
+        for k,v in enumerate(matched_buyer):
+            buyer_map[v] = k
+        for i in range(self.number_of_matches):
+            matching_list.append(['buyer' + str(i), 'seller' + str(buyer_map[i]), str(self.buyer_payoffs[i][buyer_map[i]])])
+
+        with open(file_name, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(header)
+            writer.writerows(matching_list)
 
     def auction_potential(self):
         return (self.prices.sum() + self.buyer_potential)
